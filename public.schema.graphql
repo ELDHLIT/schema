@@ -1,0 +1,307 @@
+directive @private on OBJECT | FIELD_DEFINITION | ARGUMENT_DEFINITION | INPUT_FIELD_DEFINITION | ENUM_VALUE
+
+type Query {
+  account(name: ID!): Account!
+  systems: [System]
+  system(id: String!): System!
+  clusters(systemId: String): [Cluster]
+  cluster(id: ID!): Cluster!
+  services(systemId: String, clusterId: String): [Service]
+  service(id: ID!): Service!
+  liveEvents(systemId: String, clusterId: String, serviceIds: [String], startTime: String, endTime: String): [LiveEvent]
+  liveEvent(id: ID!): LiveEvent!
+}
+
+type Mutation {
+  updateSystem(input: SystemInput): SystemResponse!
+  createService(input: ServiceInput): ServiceResponse!
+  updateService(input: ServiceInput): ServiceResponse!
+  deleteService(id: ID!): ServiceResponse!
+  createLiveEvent(input: LiveEventInput): LiveEventResponse!
+  updateLiveEvent(input: LiveEventInput): LiveEventResponse!
+  deleteLiveEvent(id: ID!): LiveEventResponse!
+}
+
+type Account {
+  name: ID!
+  displayName: String
+  createdTime: String!
+  lastUpdatedTime: String
+}
+
+type System {
+  id: ID!
+  name: String!
+  account: Account
+  clusters: [Cluster]
+  trafficRouterUrl: String
+  accountName: String!
+  createdTime: String!
+  lastUpdatedTime: String
+}
+
+input SystemInput {
+  id: ID
+  name: String!
+}
+
+type SystemResponse {
+  id: ID!
+  name: String
+  trafficRouterUrl: String
+  accountName: String
+  createdTime: String
+  lastUpdatedTime: String
+}
+
+"""A VOS Ad cluster"""
+type Cluster {
+  id: ID!
+  name: String!
+  endpoint: String
+  region: String
+  systemId: String
+  accountName: String!
+  createdTime: String!
+  lastUpdatedTime: String
+}
+
+type Service {
+  id: ID!
+  name: String!
+  systemId: String!
+  system: System
+  upstreamUrl: String
+  type: ServiceType
+  preRollConfig: PreRollConfig
+  midRollConfig: MidRollConfig
+  adBeaconing: AdBeaconing
+  legacyConfigProperty: LegacyConfigProperty
+  accountName: String!
+  createdTime: String!
+  lastUpdatedTime: String
+}
+
+type MidRollConfig {
+  enabled: Boolean
+  adsType: AdRequestType
+  adServerUrl: String
+  underfillHandling: UnderfillHandling
+}
+
+type PreRollConfig {
+  enabled: Boolean
+  adRequestType: AdRequestType
+  adServerUrl: String
+
+  """
+  Max duration in seconds for preroll ads to be played before the live stream starts
+  """
+  prerollDuration: Int
+}
+
+type AdBeaconing {
+  serverSideImpression: Boolean
+  serverSideBeacon: Boolean
+  clientSideBeacon: ClientSideBeacon
+}
+
+"""
+Read only properties for the services in existing vos clusters to achieve backward compatibility
+"""
+type LegacyConfigProperty {
+  isLegacy: Boolean
+  deploymentId: String
+}
+
+enum ServiceType {
+  VOD
+  LIVE
+}
+
+"""
+Handling mode when a the total duration of ads is less than the duration of the ad break.
+"""
+enum UnderfillHandling {
+  SLATE
+  RETURN_TO_LIVE
+}
+
+enum AdRequestType {
+  VAST
+  VMAP
+}
+
+enum ClientSideBeacon {
+  HARMONIC
+  DISABLE
+}
+
+input ServiceInput {
+  id: ID
+  name: String!
+  systemId: String!
+  upstreamUrl: String
+  type: ServiceType
+  preRollConfig: PreRollConfigInput
+  midRollConfig: MidRollConfigInput
+  adBeaconing: AdBeaconingInput
+}
+
+input MidRollConfigInput {
+  enabled: Boolean!
+  adsType: AdRequestType!
+  adServerUrl: String!
+  underfillHandling: UnderfillHandling
+}
+
+input PreRollConfigInput {
+  enabled: Boolean!
+  adRequestType: AdRequestType!
+  adServerUrl: String!
+  prerollDuration: Int!
+}
+
+input AdBeaconingInput {
+  serverSideImpression: Boolean!
+  serverSideBeacon: Boolean!
+  clientSideBeacon: ClientSideBeacon!
+}
+
+type ServiceResponse {
+  id: ID!
+  name: String
+  systemId: String
+  upstreamUrl: String
+  type: ServiceType
+  preRollConfig: PreRollConfig
+  midRollConfig: MidRollConfig
+  adBeaconing: AdBeaconing
+  legacyConfigProperty: LegacyConfigProperty
+  accountName: String
+  createdTime: String
+  lastUpdatedTime: String
+}
+
+type LiveEvent {
+  id: ID!
+  name: String!
+
+  """serviceId is used for nested query, query the service by serviceId"""
+  serviceId: String!
+  service: Service
+  startTime: String
+  endTime: String
+  overlayAdConfig: OverlayAdConfig
+  accountName: String!
+  createdTime: String!
+  lastUpdatedTime: String
+}
+
+type OverlayAdConfig {
+  inventoryAVastUrl: String
+  inventoryBVastUrl: String
+  sportradarTrigger: SportradarTrigger
+}
+
+type SportradarTrigger {
+  esamEndpoint: EsamEndpoint
+  sportRadarMLBv7: SportRadarMLBv7
+}
+
+type EsamEndpoint {
+  url: String
+  basicAuth: String
+  acquisitionPointId: String
+}
+
+type SportRadarMLBv7 {
+  matchId: String
+  events: [MLBv7Event]
+}
+
+type MLBv7Event {
+  category: MLBv7EventCategory
+  inventory: Inventory
+}
+
+enum MLBv7EventCategory {
+  HOME_RUN
+  STRIKE_OUT
+}
+
+enum Inventory {
+  A
+  B
+}
+
+input LiveEventInput {
+  id: ID
+  name: String!
+  serviceId: String!
+  startTime: String!
+  endTime: String!
+  overlayAdConfig: OverlayAdConfigInput
+}
+
+input OverlayAdConfigInput {
+  inventoryAVastUrl: String
+  inventoryBVastUrl: String
+  sportradarTrigger: SportradarTriggerInput
+}
+
+input SportradarTriggerInput {
+  esamEndpoint: EsamEndpointInput
+  sportRadarMLBv7: SportRadarMLBv7Input
+}
+
+input EsamEndpointInput {
+  url: String
+  basicAuth: String
+  acquisitionPointId: String
+}
+
+input SportRadarMLBv7Input {
+  matchId: String!
+  events: [MLBv7EventInput]
+}
+
+input MLBv7EventInput {
+  category: MLBv7EventCategory!
+  inventory: Inventory!
+}
+
+type LiveEventResponse {
+  id: ID!
+  name: String
+  serviceId: String
+  startTime: String
+  endTime: String
+  overlayAdConfig: OverlayAdConfig
+  accountName: String
+  createdTime: String
+  lastUpdatedTime: String
+}
+
+"""API Events Subscription"""
+type Subscription {
+  name: ID!
+  endpoint: Endpoint!
+
+  """
+  filter which events are sent to which endpoint
+  support filtered by accountName, to send event changes to specific tenant
+  """
+  filter: Filter
+  provisioningState: String
+}
+
+type Endpoint {
+  url: String!
+  basicAuth: String
+}
+
+type Filter {
+  accountName: String
+  systemId: String
+}

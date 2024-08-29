@@ -1,0 +1,542 @@
+directive @private on OBJECT | FIELD_DEFINITION | ARGUMENT_DEFINITION | INPUT_FIELD_DEFINITION | ENUM_VALUE
+
+type Query {
+  accounts: [Account]
+  account(name: ID!): Account!
+  systems(accountName: String): [System]
+  system(id: String!, accountName: String!): System!
+  clusters(accountName: String, systemId: String): [Cluster]
+  cluster(id: ID!, accountName: String!): Cluster!
+  services(accountName: String, systemId: String, clusterId: String): [Service]
+  service(id: ID!, accountName: String!): Service!
+  liveEvents(accountName: String, systemId: String, clusterId: String, serviceIds: [String], startTime: String, endTime: String): [LiveEvent]
+  liveEvent(id: ID!, accountName: String!): LiveEvent!
+  subscriptions: [Subscription]
+  subscription(name: ID!): Subscription!
+  globalEventSettings: [GlobalEventSetting]
+  globalEventSetting(accountName: ID!): GlobalEventSetting!
+}
+
+type Mutation {
+  createAccount(input: AccountInput): AccountResponse!
+  updateAccount(input: AccountInput): AccountResponse!
+  deleteAccount(name: ID!): AccountResponse!
+  createSystem(input: SystemInput): SystemResponse!
+  deleteSystem(id: ID!, accountName: String!): SystemResponse!
+  updateSystem(input: SystemInput): SystemResponse!
+  createCluster(input: ClusterInput): ClusterResponse!
+  updateCluster(input: ClusterInput): ClusterResponse!
+  deleteCluster(id: ID!, accountName: String!): ClusterResponse!
+  createService(input: ServiceInput): ServiceResponse!
+  updateService(input: ServiceInput): ServiceResponse!
+  deleteService(id: ID!, accountName: String!): ServiceResponse!
+  createLiveEvent(input: LiveEventInput): LiveEventResponse!
+  updateLiveEvent(input: LiveEventInput): LiveEventResponse!
+  deleteLiveEvent(id: ID!, accountName: String!): LiveEventResponse!
+  upsertSubscription(input: SubscriptionInput): SubscriptionResponse!
+  deleteSubscription(name: ID!): SubscriptionResponse!
+  createGlobalEventSetting(input: GlobalEventSettingInput): GlobalEventSetting!
+  updateGlobalEventSetting(input: GlobalEventSettingInput): GlobalEventSetting!
+  deleteGlobalEventSetting(accountName: ID!): GlobalEventSetting!
+}
+
+type Account {
+  name: ID!
+  displayName: String
+  createdTime: String!
+  lastUpdatedTime: String
+}
+
+input AccountInput {
+  name: String!
+  displayName: String!
+}
+
+type AccountResponse {
+  name: ID!
+  displayName: String
+  createdTime: String
+  lastUpdatedTime: String
+}
+
+type System {
+  id: ID!
+  name: String!
+  account: Account
+  clusters: [Cluster]
+  trafficRouterUrl: String
+  accountName: String!
+  createdTime: String!
+  lastUpdatedTime: String
+}
+
+input SystemInput {
+  id: ID
+  name: String!
+  trafficRouterUrl: String!
+  accountName: String!
+}
+
+type SystemResponse {
+  id: ID!
+  name: String
+  trafficRouterUrl: String
+  accountName: String
+  createdTime: String
+  lastUpdatedTime: String
+}
+
+"""A VOS Ad cluster"""
+type Cluster {
+  id: ID!
+  name: String!
+  endpoint: String
+  region: String
+  systemId: String
+  defaultServiceConfig: DefaultServiceConfig
+  accountName: String!
+  createdTime: String!
+  lastUpdatedTime: String
+}
+
+"""
+The default PMM service configuration for the cluster. These are variables defined at system deployment, for example the CDN hostnames.
+These variables are not expected to be modified by the user.
+"""
+type DefaultServiceConfig {
+  """The default ad transcoding profile UUID."""
+  adTxLabwizardProfileId: String
+
+  """The segment delivery mode. Set this based on the CDN configuration."""
+  segmentDeliveryMode: SegmentDeliveryMode
+  enableAdRequestParamsValidation: Boolean
+  partialAdBreak: Boolean
+}
+
+"""
+The segment delivery mode of PMM. Set this based on the CDN configuration. See each subtype for the details of each mode.
+Set exactly one of the following mode variables.
+"""
+type SegmentDeliveryMode {
+  """
+  The default mode.
+  Use original content segment URL for content segments. Delivere Ad segments from VOS Ad's CDN.
+  """
+  basicDeliveryMode: BasicDeliveryMode
+
+  """
+  Override the content segment hostnames with the the configured CDN. Delivere Ad segments from VOS Ad's CDN.
+  """
+  alternativeContentCdnMode: AlternativeCdnMode
+
+  """
+  Manifest, Ad and content segments are delivered from the same configured CDN.
+  """
+  vosAdBehindCdnMode: VosAdBehindCdnMode
+}
+
+"""
+VOS Ad will expand the relative segment URL to the full URL, basing on the configured upstream manifest URL.
+Ad segments are delivered from VOS Ad's CDN.
+"""
+type BasicDeliveryMode {
+  enabled: Boolean!
+}
+
+"""
+VOS Ad will expand the relative segment URL to the full URL using the configured CDN prefix.
+VOS Ad will retrieve the manifest the configured upstream URL directly without rewriting the URL.
+Ad segments are delivered from VOS Ad's CDN.
+"""
+type AlternativeCdnMode {
+  enabled: Boolean
+  cdnUrlPrefix: String!
+}
+
+"""
+The DAI manifest, Ad and content segments will be served by the configured CDN.
+See https://xxxx to configure the CDN.
+"""
+type VosAdBehindCdnMode {
+  enabled: Boolean!
+}
+
+input ClusterInput {
+  id: ID
+  name: String!
+  systemId: String!
+  endpoint: String!
+  region: String
+  defaultServiceConfig: DefaultServiceConfigInput
+  accountName: String!
+}
+
+input DefaultServiceConfigInput {
+  adTxLabwizardProfileId: String
+  segmentDeliveryMode: SegmentDeliveryModeInput
+}
+
+input SegmentDeliveryModeInput {
+  basicDeliveryMode: BasicDeliveryModeInput
+  alternativeContentCdnMode: AlternativeCdnModeInput
+  vosAdBehindCdnMode: VosAdBehindCdnModeInput
+}
+
+input BasicDeliveryModeInput {
+  enabled: Boolean!
+}
+
+input AlternativeCdnModeInput {
+  enabled: Boolean!
+  cdnUrlPrefix: String!
+}
+
+input VosAdBehindCdnModeInput {
+  enabled: Boolean!
+}
+
+type ClusterResponse {
+  id: ID!
+  name: String
+  systemId: String
+  endpoint: String
+  region: String
+  defaultServiceConfig: DefaultServiceConfig
+  accountName: String
+  createdTime: String
+  lastUpdatedTime: String
+}
+
+type Service {
+  id: ID!
+  name: String!
+  systemId: String!
+  system: System
+  upstreamUrl: String
+  type: ServiceType
+  preRollConfig: PreRollConfig
+  midRollConfig: MidRollConfig
+  adBeaconing: AdBeaconing
+  legacyConfigProperty: LegacyConfigProperty
+  privateConfig: PrivateConfig
+  accountName: String!
+  createdTime: String!
+  lastUpdatedTime: String
+}
+
+type MidRollConfig {
+  enabled: Boolean
+  adsType: AdRequestType
+  adServerUrl: String
+  underfillHandling: UnderfillHandling
+}
+
+type PreRollConfig {
+  enabled: Boolean
+  adRequestType: AdRequestType
+  adServerUrl: String
+
+  """
+  Max duration in seconds for preroll ads to be played before the live stream starts
+  """
+  prerollDuration: Int
+}
+
+type AdBeaconing {
+  serverSideImpression: Boolean
+  serverSideBeacon: Boolean
+  clientSideBeacon: ClientSideBeacon
+}
+
+type PrivateConfig {
+  adsPrefetchStrategy: AdsPrefetchStrategy
+  adsPreIngestConfig: AdsPreIngestConfig
+}
+
+type AdsPreIngestConfig {
+  harmonicVast: HarmonicVastPreIngest
+}
+
+type HarmonicVastPreIngest {
+  clipsAmountLimit: Int
+  enabled: Boolean
+  frequency: Int
+  preFetchUrl: String
+  responseType: AdRequestType
+}
+
+"""
+Read only properties for the services in existing vos clusters to achieve backward compatibility
+"""
+type LegacyConfigProperty {
+  isLegacy: Boolean
+  deploymentId: String
+}
+
+enum ServiceType {
+  VOD
+  LIVE
+}
+
+"""
+Handling mode when a the total duration of ads is less than the duration of the ad break.
+"""
+enum UnderfillHandling {
+  SLATE
+  RETURN_TO_LIVE
+}
+
+enum AdRequestType {
+  VAST
+  VMAP
+}
+
+enum ClientSideBeacon {
+  HARMONIC
+  DISABLE
+}
+
+enum AdsPrefetchStrategy {
+  NO_PREFETCH
+  PREFETCH_BEFORE_NEXT_AD_BREAK
+}
+
+input ServiceInput {
+  id: ID
+  name: String!
+  systemId: String!
+  upstreamUrl: String
+  type: ServiceType
+  preRollConfig: PreRollConfigInput
+  midRollConfig: MidRollConfigInput
+  adBeaconing: AdBeaconingInput
+  legacyConfigProperty: LegacyConfigPropertyInput
+  privateConfig: PrivateConfigInput
+  accountName: String!
+}
+
+input MidRollConfigInput {
+  enabled: Boolean!
+  adsType: AdRequestType!
+  adServerUrl: String!
+  underfillHandling: UnderfillHandling
+}
+
+input PreRollConfigInput {
+  enabled: Boolean!
+  adRequestType: AdRequestType!
+  adServerUrl: String!
+  prerollDuration: Int!
+}
+
+input AdBeaconingInput {
+  serverSideImpression: Boolean!
+  serverSideBeacon: Boolean!
+  clientSideBeacon: ClientSideBeacon!
+}
+
+input PrivateConfigInput {
+  adsPrefetchStrategy: AdsPrefetchStrategy!
+  adsPreIngestConfig: AdsPreIngestConfigInput!
+}
+
+input AdsPreIngestConfigInput {
+  harmonicVast: HarmonicVastPreIngestInput
+}
+
+input HarmonicVastPreIngestInput {
+  clipsAmountLimit: Int
+  enabled: Boolean
+  frequency: Int
+  preFetchUrl: String
+  responseType: AdRequestType
+}
+
+input LegacyConfigPropertyInput {
+  isLegacy: Boolean
+  deploymentId: String
+}
+
+type ServiceResponse {
+  id: ID!
+  name: String
+  systemId: String
+  upstreamUrl: String
+  type: ServiceType
+  preRollConfig: PreRollConfig
+  midRollConfig: MidRollConfig
+  adBeaconing: AdBeaconing
+  legacyConfigProperty: LegacyConfigProperty
+  privateConfig: PrivateConfig
+  accountName: String
+  createdTime: String
+  lastUpdatedTime: String
+}
+
+type LiveEvent {
+  id: ID!
+  name: String!
+
+  """serviceId is used for nested query, query the service by serviceId"""
+  serviceId: String!
+  service: Service
+  startTime: String
+  endTime: String
+  overlayAdConfig: OverlayAdConfig
+  accountName: String!
+  createdTime: String!
+  lastUpdatedTime: String
+}
+
+type OverlayAdConfig {
+  inventoryAVastUrl: String
+  inventoryBVastUrl: String
+  sportradarTrigger: SportradarTrigger
+}
+
+type SportradarTrigger {
+  esamEndpoint: EsamEndpoint
+  sportRadarMLBv7: SportRadarMLBv7
+}
+
+type EsamEndpoint {
+  url: String
+  basicAuth: String
+  acquisitionPointId: String
+}
+
+type SportRadarMLBv7 {
+  matchId: String
+  events: [MLBv7Event]
+  sportRadarMLBv7Setting: SportRadarMLBv7Setting
+}
+
+type MLBv7Event {
+  category: MLBv7EventCategory
+  inventory: Inventory
+}
+
+enum MLBv7EventCategory {
+  HOME_RUN
+  STRIKE_OUT
+}
+
+enum Inventory {
+  A
+  B
+}
+
+input LiveEventInput {
+  id: ID
+  name: String!
+  serviceId: String!
+  startTime: String!
+  endTime: String!
+  overlayAdConfig: OverlayAdConfigInput
+  accountName: String!
+}
+
+input OverlayAdConfigInput {
+  inventoryAVastUrl: String
+  inventoryBVastUrl: String
+  sportradarTrigger: SportradarTriggerInput
+}
+
+input SportradarTriggerInput {
+  esamEndpoint: EsamEndpointInput
+  sportRadarMLBv7: SportRadarMLBv7Input
+}
+
+input EsamEndpointInput {
+  url: String
+  basicAuth: String
+  acquisitionPointId: String
+}
+
+input SportRadarMLBv7Input {
+  matchId: String!
+  events: [MLBv7EventInput]
+}
+
+input MLBv7EventInput {
+  category: MLBv7EventCategory!
+  inventory: Inventory!
+}
+
+type LiveEventResponse {
+  id: ID!
+  name: String
+  serviceId: String
+  startTime: String
+  endTime: String
+  overlayAdConfig: OverlayAdConfig
+  accountName: String
+  createdTime: String
+  lastUpdatedTime: String
+}
+
+"""API Events Subscription"""
+type Subscription {
+  name: ID!
+  endpoint: Endpoint!
+
+  """
+  filter which events are sent to which endpoint
+  support filtered by accountName, to send event changes to specific tenant
+  """
+  filter: Filter
+  provisioningState: String
+}
+
+type Endpoint {
+  url: String!
+  basicAuth: String
+}
+
+type Filter {
+  accountName: String
+  systemId: String
+}
+
+input SubscriptionInput {
+  name: ID
+  endpoint: EndpointInput
+  filter: FilterInput
+}
+
+input FilterInput {
+  accountName: String
+  systemId: String
+}
+
+input EndpointInput {
+  url: String
+  basicAuth: String
+}
+
+type SubscriptionResponse {
+  name: ID!
+  endpoint: Endpoint
+  filter: Filter
+  provisioningState: String
+}
+
+type GlobalEventSetting {
+  accountName: ID!
+  sportRadarMLBv7Setting: SportRadarMLBv7Setting
+  createdTime: String!
+  lastUpdatedTime: String
+}
+
+type SportRadarMLBv7Setting {
+  endpoint: Endpoint
+}
+
+input GlobalEventSettingInput {
+  accountName: String
+  sportRadarMLBv7Setting: SportRadarMLBv7SettingInput
+}
+
+input SportRadarMLBv7SettingInput {
+  endpoint: EndpointInput
+}
